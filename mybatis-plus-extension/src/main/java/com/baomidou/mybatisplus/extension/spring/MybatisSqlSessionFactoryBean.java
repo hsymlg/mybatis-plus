@@ -83,6 +83,11 @@ import static org.springframework.util.StringUtils.tokenizeToStringArray;
  *
  * @author hubin
  * @since 2017-01-04
+ * 这个类实现了三个接口
+ * FactoryBean：说明用到了工厂模式
+ * InitializingBean：afterPropertiesSet 在属性设置完成时调用（在Bean创建完成时）
+ * 调用ApplicationListener是一个监听器，监听的是ApplicationContext初始化或者刷新事件，当初始化或者刷新时调用。
+ * 用来刷新MappedStatement
  */
 public class MybatisSqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, InitializingBean, ApplicationListener<ApplicationEvent> {
 
@@ -455,6 +460,18 @@ public class MybatisSqlSessionFactoryBean implements FactoryBean<SqlSessionFacto
      *
      * @return SqlSessionFactory
      * @throws IOException if loading the config file failed
+     * 创建一个SqlSessionFactory实例
+     * 主要干了很多事：
+     * 首先解析Mybatis的配置
+     * 无配置启动相关配置
+     * 初始化id-work 以及 打印 Banner
+     * 设置元数据相关如果用户没有配置 dbType 则自动获取
+     * 自定义枚举类扫描处理
+     * 扫描别名包
+     * 添加拦截器插件
+     * 如果是xml配置，解析xml配置文件
+     * 根据mapperLocations解析Mapper文件
+     * 最后是创建SqlSessionFactory，并返回
      */
     protected SqlSessionFactory buildSqlSessionFactory() throws Exception {
 
@@ -571,6 +588,7 @@ public class MybatisSqlSessionFactoryBean implements FactoryBean<SqlSessionFacto
                     try {
                         XMLMapperBuilder xmlMapperBuilder = new XMLMapperBuilder(mapperLocation.getInputStream(),
                             targetConfiguration, mapperLocation.toString(), targetConfiguration.getSqlFragments());
+                        //解析xml文件，XMLMapperBuilder是mybatis里的类
                         xmlMapperBuilder.parse();
                     } catch (Exception e) {
                         throw new NestedIOException("Failed to parse mapping resource: '" + mapperLocation + "'", e);

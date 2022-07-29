@@ -74,6 +74,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
+ * 在 mybatis-plus-boot-starter的resources文件夹下有一个META-INF文件夹
+ * additional-spring-configuration-metadata.json 用于 我们在properties或者yml文件中，
+ * 写Mybatis—plus相关配置时提示。spring.factories 在项目启动时，进行自动配置。
+ * 里面配置的自动启动类# Auto Configure org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration
  * {@link EnableAutoConfiguration Auto-Configuration} for Mybatis. Contributes a
  * {@link SqlSessionFactory} and a {@link SqlSessionTemplate}.
  * <p>
@@ -88,12 +92,19 @@ import java.util.stream.Stream;
  * @author Josh Long
  * @author Kazuki Shimizu
  * @author Eduardo Macarrón
+ * MybatisPlusAutoConfiguration 自动配置类的 sqlSessionFactory()方法为 Spring提供创建 sqlSession的工厂类对象，
+ * 对 sqlSessionFactory 进行定义的定义类变为了 MybatisSqlSessionFactoryBean。
+ * 在 sqlSessionFactory()方法中，除了注入 MyBatis本身的组件，还会注入MyBatis-plus 的 主键生成器、SQL 注入器等组件，
+ * 最后通过 MybatisSqlSessionFactoryBean#getObject() 方法获取到 sqlSessionFactory 对象
+ *
+ * 这个类由于实现了InitializingBean接口，得到了afterPropertiesSet方法，在Bean初始化后，会自动调用。
+ * 还有三个标注了 @ConditionalOnMissingBean 注解的方法。
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({SqlSessionFactory.class, SqlSessionFactoryBean.class})
-@ConditionalOnSingleCandidate(DataSource.class)
-@EnableConfigurationProperties(MybatisPlusProperties.class)
-@AutoConfigureAfter({DataSourceAutoConfiguration.class, MybatisPlusLanguageDriverAutoConfiguration.class})
+@ConditionalOnClass({SqlSessionFactory.class, SqlSessionFactoryBean.class})//系统中有指定的类
+@ConditionalOnSingleCandidate(DataSource.class)//容器中只有一个指定的Bean，或者这个Bean是首选Bean
+@EnableConfigurationProperties(MybatisPlusProperties.class)//为带有@ConfigurationProperties注解的Bean提供有效的支持
+@AutoConfigureAfter({DataSourceAutoConfiguration.class, MybatisPlusLanguageDriverAutoConfiguration.class})//将一个配置类在另一个配置类之后加载
 public class MybatisPlusAutoConfiguration implements InitializingBean {
 
     private static final Logger logger = LoggerFactory.getLogger(MybatisPlusAutoConfiguration.class);
@@ -156,6 +167,12 @@ public class MybatisPlusAutoConfiguration implements InitializingBean {
         }
     }
 
+    /**
+     * 这个方法在没有配置SqlSessionFactory时会由SpringBoot创建Bean，并且保存到容器中。
+     * 该方法的返回值是SqlSessionFactory(可以理解为工厂bean的工厂bean，用来“生产”工厂)
+     * 此方法通过new MybatisSqlSessionFactoryBean来建立工厂的工厂，并通过getObject()方法返回工厂(类型为DefaultSqlSessionFactory)。
+     * 此外，方法还会执行MyBatis本身组件、MyBatis-plus主键生成器、SQL 注入器等组件的注入操作
+     */
     @Bean
     @ConditionalOnMissingBean
     public SqlSessionFactory sqlSessionFactory(DataSource dataSource) throws Exception {
@@ -270,6 +287,9 @@ public class MybatisPlusAutoConfiguration implements InitializingBean {
         }
     }
 
+    /**
+     * 这个方法在没有配置SqlSessionTemplate时会由SpringBoot创建Bean，并且保存到容器中。
+     */
     @Bean
     @ConditionalOnMissingBean
     public SqlSessionTemplate sqlSessionTemplate(SqlSessionFactory sqlSessionFactory) {
@@ -365,6 +385,7 @@ public class MybatisPlusAutoConfiguration implements InitializingBean {
      * If mapper registering configuration or mapper scanning configuration not present, this configuration allow to scan
      * mappers based on the same component-scanning path as Spring Boot itself.
      */
+    //这个方法在没有配置MapperFactoryBean时会由SpringBoot创建Bean，并且保存到容器中。
     @org.springframework.context.annotation.Configuration
     @Import(AutoConfiguredMapperScannerRegistrar.class)
     @ConditionalOnMissingBean({MapperFactoryBean.class, MapperScannerConfigurer.class})
